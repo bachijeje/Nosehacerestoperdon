@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Juego para mi amor</title>
+    <style>
+        body { margin: 0; background: #fdf6f7; overflow: hidden; touch-action: none; }
+        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #d63384; font-size: 20px; z-index: 10; pointer-events: none; }
+        #joystick { position: fixed; bottom: 50px; left: 50px; z-index: 10; }
+    </style>
+</head>
+<body>
+    <div id="ui">Corazones: <span id="score">0</span></div>
+    <div id="joystick"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.9.0/nipplejs.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfff5f7);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Suelo y Corazones (igual que antes)
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshBasicMaterial({ color: 0xd1eaed }));
+        plane.rotation.x = -Math.PI / 2;
+        scene.add(plane);
+
+        function createHeart() {
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0.5);
+            shape.bezierCurveTo(0, 0.5, 0, 1, 0.5, 1);
+            shape.bezierCurveTo(1, 1, 1, 0.5, 1, 0.5);
+            shape.bezierCurveTo(1, 0.25, 0.75, 0, 0.5, 0);
+            shape.bezierCurveTo(0.25, 0, 0, 0.25, 0, 0.5);
+            shape.bezierCurveTo(0, 0.25, -0.25, 0, -0.5, 0);
+            shape.bezierCurveTo(-0.75, 0, -1, 0.25, -1, 0.5);
+            shape.bezierCurveTo(-1, 1, -0.5, 1, -0.5, 1);
+            shape.bezierCurveTo(0, 1, 0, 0.5, 0, 0.5);
+            const geom = new THREE.ExtrudeGeometry(shape, { depth: 0.2, bevelEnabled: true, bevelSize: 0.1, bevelThickness: 0.1 });
+            return new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ color: 0xff6b81 }));
+        }
+
+        let hearts = [];
+        for(let i=0; i<8; i++){
+            const h = createHeart();
+            h.position.set(Math.random()*20-10, 0.5, Math.random()*20-10);
+            scene.add(h);
+            hearts.push(h);
+        }
+
+        camera.position.set(0, 1.5, 0);
+        let yaw = 0, pitch = 0;
+
+        // Joystick para caminar
+        const manager = nipplejs.create({ zone: document.getElementById('joystick'), mode: 'static', position: { left: '80px', bottom: '80px' } });
+        let moveVec = { x: 0, y: 0 };
+        manager.on('move', (e, d) => { moveVec = d.vector; });
+        manager.on('end', () => { moveVec = { x: 0, y: 0 }; });
+
+        // Evento para mover la cámara deslizando el dedo
+        window.addEventListener('touchmove', (e) => {
+            if(e.touches[0].clientX > window.innerWidth / 3) { // Solo si toca el lado derecho
+                yaw -= e.changedTouches[0].movementX * 0.01;
+            }
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Aplicar rotación
+            camera.rotation.y = yaw;
+            
+            // Mover hacia adelante/atrás/lados según donde mire
+            const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+            const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+            
+            camera.position.addScaledVector(forward, moveVec.y * 0.05);
+            camera.position.addScaledVector(right, moveVec.x * 0.05);
+            
+            hearts.forEach((h, index) => {
+                h.rotation.y += 0.05;
+                if(camera.position.distanceTo(h.position) < 1.5) {
+                    scene.remove(h);
+                    hearts.splice(index, 1);
+                    document.getElementById('score').innerText = (8 - hearts.length);
+                }
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
