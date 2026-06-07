@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Para mi amor</title>
+    <style>
+        body { margin: 0; background: #fdf6f7; overflow: hidden; font-family: 'Arial', sans-serif; }
+        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #d63384; font-size: 20px; z-index: 10; pointer-events: none; }
+        #joystick { position: fixed; bottom: 50px; left: 50px; z-index: 10; }
+    </style>
+</head>
+<body>
+    <div id="ui">Corazones: <span id="score">0</span></div>
+    <div id="joystick"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.9.0/nipplejs.min.js"></script>
+    <script>
+        // Configuración
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfff5f7);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Suelo
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshBasicMaterial({ color: 0xd1eaed }));
+        plane.rotation.x = -Math.PI / 2;
+        scene.add(plane);
+
+        // Función para crear forma de corazón
+        function createHeart() {
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0.5);
+            shape.bezierCurveTo(0, 0.5, 0, 1, 0.5, 1);
+            shape.bezierCurveTo(1, 1, 1, 0.5, 1, 0.5);
+            shape.bezierCurveTo(1, 0.25, 0.75, 0, 0.5, 0);
+            shape.bezierCurveTo(0.25, 0, 0, 0.25, 0, 0.5);
+            shape.bezierCurveTo(0, 0.25, -0.25, 0, -0.5, 0);
+            shape.bezierCurveTo(-0.75, 0, -1, 0.25, -1, 0.5);
+            shape.bezierCurveTo(-1, 1, -0.5, 1, -0.5, 1);
+            shape.bezierCurveTo(0, 1, 0, 0.5, 0, 0.5);
+            
+            const extrudeSettings = { depth: 0.2, bevelEnabled: true, bevelSegments: 2, steps: 2, bevelSize: 0.1, bevelThickness: 0.1 };
+            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            const material = new THREE.MeshBasicMaterial({ color: 0xff6b81 });
+            return new THREE.Mesh(geometry, material);
+        }
+
+        // Corazones
+        let hearts = [];
+        for(let i=0; i<8; i++){
+            const h = createHeart();
+            h.position.set(Math.random()*20-10, 0.5, Math.random()*20-10);
+            h.scale.set(0.3, 0.3, 0.3);
+            scene.add(h);
+            hearts.push(h);
+        }
+
+        // Cámara en 1ra persona
+        camera.position.set(0, 1.5, 0);
+
+        const manager = nipplejs.create({ zone: document.getElementById('joystick'), mode: 'static', position: { left: '80px', bottom: '80px' } });
+        let move = { x: 0, y: 0 };
+        manager.on('move', (e, d) => {
+            move.x = d.vector.x / 50;
+            move.y = -d.vector.y / 50;
+        });
+        manager.on('end', () => { move = { x: 0, y: 0 }; });
+
+        let score = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            // Movimiento estilo primera persona
+            camera.position.x += move.x;
+            camera.position.z += move.y;
+            
+            hearts.forEach((h, index) => {
+                h.rotation.y += 0.05; // Que giren
+                if(camera.position.distanceTo(h.position) < 1.5) {
+                    scene.remove(h);
+                    hearts.splice(index, 1);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                }
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
